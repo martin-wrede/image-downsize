@@ -3,27 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatGPT Cloudflare Worker</title>
+    <title>Image Upload Automation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid #28a745;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 5px solid #dc3545;
+            display: block;
+        }
+
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 5px solid #17a2b8;
+            display: block;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .result-item {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+        }
+
+        .result-item.failed {
+            border-left-color: #dc3545;
+        }
+
+        .result-item strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .result-item small {
+            color: #666;
+        }
+
+        .download-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 5px;
+            display: inline-block;
+        }
+
+        .download-link:hover {
+            text-decoration: underline;
+        }
+
+        .example {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .example code {
+            display: block;
+            margin-top: 5px;
+            color: #667eea;
+            font-family: monospace;
+        }
+
+        @media (max-width: 600px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h2>Chat with GPT</h2>
-    <input type="text" id="userInput" placeholder="Type your message..." />
-    <button onclick="sendMessage()">Send</button>
-    <p><strong>Response:</strong> <span id="responseText"></span></p>
+    <div class="container">
+        <h1>🚀 Image Upload Automation</h1>
+        <p class="subtitle">Paste your image URLs and upload them automatically</p>
+
+        <div class="example">
+            <strong>💡 Example URLs (one per line):</strong>
+            <code>https://pub-2e08632872a645f89f91aad5f2904c70.r2.dev/automated_down/gemini_1766138884795.jpeg</code>
+            <code>https://pub-2e08632872a645f89f91aad5f2904c70.r2.dev/project_xyz/image_001.png</code>
+        </div>
+
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="urls">Image URLs (one per line)</label>
+                <textarea 
+                    id="urls" 
+                    rows="10" 
+                    placeholder="Paste your image URLs here, one per line..."
+                    required
+                ></textarea>
+            </div>
+
+            <div class="settings-grid">
+                <div class="form-group">
+                    <label for="maxWidth">Max Width (px)</label>
+                    <input type="number" id="maxWidth" value="1920" min="100" max="4000">
+                </div>
+                <div class="form-group">
+                    <label for="maxHeight">Max Height (px)</label>
+                    <input type="number" id="maxHeight" value="1080" min="100" max="4000">
+                </div>
+                <div class="form-group">
+                    <label for="quality">Quality (%)</label>
+                    <input type="number" id="quality" value="85" min="1" max="100">
+                </div>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">
+                📤 Upload & Optimize Images
+            </button>
+        </form>
+
+        <div id="status" class="status"></div>
+        <div id="results" class="results"></div>
+    </div>
 
     <script>
-        async function sendMessage() {
-            const userInput = document.getElementById("userInput").value;
-            const responseText = document.getElementById("responseText");
+        // IMPORTANT: Replace this with your Cloudflare Worker URL
+        const WORKER_URL = 'https://your-worker.your-subdomain.workers.dev';
 
-            const response = await fetch("https://crimson-base-cd40.framez-mw.workers.dev", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: userInput })
+        const form = document.getElementById('uploadForm');
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Get form values
+            const urlsText = document.getElementById('urls').value.trim();
+            const maxWidth = parseInt(document.getElementById('maxWidth').value);
+            const maxHeight = parseInt(document.getElementById('maxHeight').value);
+            const quality = parseInt(document.getElementById('quality').value);
+
+            // Parse URLs (one per line)
+            const urls = urlsText.split('\n')
+                .map(url => url.trim())
+                .filter(url => url.length > 0);
+
+            if (urls.length === 0) {
+                showStatus('error', 'Please enter at least one URL');
+                return;
+            }
+
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Processing...';
+            showStatus('loading', `Uploading ${urls.length} image(s)...`);
+            resultsDiv.innerHTML = '';
+
+            try {
+                // Send request to Cloudflare Worker
+                const response = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        urls: urls,
+                        max_width: maxWidth,
+                        max_height: maxHeight,
+                        quality: quality
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('success', 
+                        `✓ Success! ${data.summary.successful} of ${data.summary.total} images uploaded and optimized.`
+                    );
+
+                    // Display results
+                    displayResults(data.results);
+                } else {
+                    showStatus('error', `Error: ${data.error || 'Unknown error occurred'}`);
+                }
+
+            } catch (error) {
+                showStatus('error', `Network error: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 Upload & Optimize Images';
+            }
+        });
+
+        function showStatus(type, message) {
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        function displayResults(results) {
+            resultsDiv.innerHTML = '<h3>Results:</h3>';
+
+            results.forEach((result, index) => {
+                const div = document.createElement('div');
+                div.className = `result-item ${result.success ? '' : 'failed'}`;
+
+                if (result.success) {
+                    div.innerHTML = `
+                        <strong>✓ Image ${index + 1}: ${result.filename}</strong>
+                        <small>Size: ${result.size_kb} KB | Dimensions: ${result.dimensions.width}×${result.dimensions.height}px</small>
+                        <br>
+                        <a href="${result.download_url}" target="_blank" class="download-link">📥 Download</a>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <strong>✗ Image ${index + 1}: Failed</strong>
+                        <small>URL: ${result.url}</small>
+                        <br>
+                        <small style="color: #dc3545;">Error: ${result.error}</small>
+                    `;
+                }
+
+                resultsDiv.appendChild(div);
             });
-
-            const data = await response.json();
-            responseText.innerText = data.response;
         }
     </script>
 </body>
