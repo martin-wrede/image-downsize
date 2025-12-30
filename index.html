@@ -177,6 +177,15 @@
             text-decoration: underline;
         }
 
+        .btn-secondary {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            margin-top: 20px;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            box-shadow: 0 10px 20px rgba(23, 162, 184, 0.4);
+        }
+
         .example {
             background: #f8f9fa;
             padding: 15px;
@@ -244,17 +253,24 @@
 
         <div id="status" class="status"></div>
         <div id="results" class="results"></div>
+
+        <button type="button" class="btn btn-secondary" id="downloadZipBtn" style="display: none;">
+            📦 Download All as ZIP
+        </button>
     </div>
 
     <script>
-        // IMPORTANT: Replace this with your Cloudflare Worker URL
-    
+        // IMPORTANT: Replace these with your actual URLs
         const WORKER_URL = 'https://www.targetx.de/image_download/upload_api.php';
+        const DOWNLOAD_ZIP_URL = 'https://www.targetx.de/image_download/download_zip.php';
 
         const form = document.getElementById('uploadForm');
         const statusDiv = document.getElementById('status');
         const resultsDiv = document.getElementById('results');
         const submitBtn = document.getElementById('submitBtn');
+        const downloadZipBtn = document.getElementById('downloadZipBtn');
+
+        let uploadedFilenames = [];
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -303,8 +319,13 @@
                         `✓ Success! ${data.summary.successful} of ${data.summary.total} images uploaded and optimized.`
                     );
 
-                    // Display results
+                    // Display results and collect filenames
                     displayResults(data.results);
+                    
+                    // Show download ZIP button if we have successful uploads
+                    if (data.summary.successful > 0) {
+                        downloadZipBtn.style.display = 'block';
+                    }
                 } else {
                     showStatus('error', `Error: ${data.error || 'Unknown error occurred'}`);
                 }
@@ -324,12 +345,15 @@
 
         function displayResults(results) {
             resultsDiv.innerHTML = '<h3>Results:</h3>';
+            uploadedFilenames = []; // Reset
 
             results.forEach((result, index) => {
                 const div = document.createElement('div');
                 div.className = `result-item ${result.success ? '' : 'failed'}`;
 
                 if (result.success) {
+                    uploadedFilenames.push(result.filename); // Store filename
+                    
                     div.innerHTML = `
                         <strong>✓ Image ${index + 1}: ${result.filename}</strong>
                         <small>Size: ${result.size_kb} KB | Dimensions: ${result.dimensions.width}×${result.dimensions.height}px</small>
@@ -348,6 +372,52 @@
                 resultsDiv.appendChild(div);
             });
         }
+
+        // Download all uploaded images as ZIP
+        downloadZipBtn.addEventListener('click', async () => {
+            if (uploadedFilenames.length === 0) {
+                alert('No images to download');
+                return;
+            }
+
+            downloadZipBtn.disabled = true;
+            downloadZipBtn.textContent = '⏳ Creating ZIP...';
+
+            try {
+                const response = await fetch(DOWNLOAD_ZIP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filenames: uploadedFilenames
+                    })
+                });
+
+                if (response.ok) {
+                    // Download the ZIP file
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `optimized_images_${Date.now()}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    showStatus('success', '✓ ZIP file downloaded successfully!');
+                } else {
+                    const error = await response.json();
+                    showStatus('error', `Failed to create ZIP: ${error.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showStatus('error', `Error downloading ZIP: ${error.message}`);
+            } finally {
+                downloadZipBtn.disabled = false;
+                downloadZipBtn.textContent = '📦 Download All as ZIP';
+            }
+        });
     </script>
 </body>
 </html>
